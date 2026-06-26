@@ -216,6 +216,16 @@ class FlutterMidiCommandPlugin : FlutterPlugin, ActivityAware, MethodCallHandler
         result.success(null)
       }
 
+      "closeInputPorts" -> {
+        connectedDevices.values.forEach {
+          if (it is ConnectedDevice) {
+            it.inputPort?.close()
+            it.inputPort = null
+          }
+        }
+        result.success(null)
+      }
+
       else -> {
         result.notImplemented()
       }

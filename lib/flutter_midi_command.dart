@@ -194,4 +194,11 @@ class MidiCommand {
   void setNetworkSessionEnabled(bool enabled) {
     _platform.setNetworkSessionEnabled(enabled);
   }
+
+  /// Closes all input ports of connected devices.
+  /// 
+  /// This is functional on Android only, as iOS does not require manual management of input ports.
+  void closeInputPorts() {
+    _platform.closeInputPorts();
+  }
 }

@@ -315,6 +315,9 @@ public class SwiftFlutterMidiCommandPlugin: NSObject, CBCentralManagerDelegate, 
 #else
             result(nil)
 #endif
+
+        case "closeInputPorts":
+            result(nil)
             
         default:
             result(FlutterMethodNotImplemented)

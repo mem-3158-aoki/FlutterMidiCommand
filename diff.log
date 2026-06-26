@@ -1,0 +1,170 @@
+diff --git a/android/src/main/kotlin/com/invisiblewrench/fluttermidicommand/FlutterMidiCommandPlugin.kt b/android/src/main/kotlin/com/invisiblewrench/fluttermidicommand/FlutterMidiCommandPlugin.kt
+index 649c817..6a44f89 100644
+--- a/android/src/main/kotlin/com/invisiblewrench/fluttermidicommand/FlutterMidiCommandPlugin.kt
++++ b/android/src/main/kotlin/com/invisiblewrench/fluttermidicommand/FlutterMidiCommandPlugin.kt
+@@ -216,6 +216,16 @@ class FlutterMidiCommandPlugin : FlutterPlugin, ActivityAware, MethodCallHandler
+         result.success(null)
+       }
+ 
++      "closeInputPorts" -> {
++        connectedDevices.values.forEach {
++          if (it is ConnectedDevice) {
++            it.inputPort?.close()
++            it.inputPort = null
++          }
++        }
++        result.success(null)
++      }
++
+       else -> {
+         result.notImplemented()
+       }
+diff --git a/example/linux/flutter/generated_plugin_registrant.cc b/example/linux/flutter/generated_plugin_registrant.cc
+index e71a16d..8661d12 100644
+--- a/example/linux/flutter/generated_plugin_registrant.cc
++++ b/example/linux/flutter/generated_plugin_registrant.cc
+@@ -6,6 +6,10 @@
+ 
+ #include "generated_plugin_registrant.h"
+ 
++#include <flutter_midi_command_linux/none.h>
+ 
+ void fl_register_plugins(FlPluginRegistry* registry) {
++  g_autoptr(FlPluginRegistrar) flutter_midi_command_linux_registrar =
++      fl_plugin_registry_get_registrar_for_plugin(registry, "none");
++  none_register_with_registrar(flutter_midi_command_linux_registrar);
+ }
+diff --git a/example/linux/flutter/generated_plugins.cmake b/example/linux/flutter/generated_plugins.cmake
+index 2e1de87..d450925 100644
+--- a/example/linux/flutter/generated_plugins.cmake
++++ b/example/linux/flutter/generated_plugins.cmake
+@@ -3,6 +3,7 @@
+ #
+ 
+ list(APPEND FLUTTER_PLUGIN_LIST
++  flutter_midi_command_linux
+ )
+ 
+ list(APPEND FLUTTER_FFI_PLUGIN_LIST
+diff --git a/example/macos/Flutter/GeneratedPluginRegistrant.swift b/example/macos/Flutter/GeneratedPluginRegistrant.swift
+index 747041c..cd80fc1 100644
+--- a/example/macos/Flutter/GeneratedPluginRegistrant.swift
++++ b/example/macos/Flutter/GeneratedPluginRegistrant.swift
+@@ -5,10 +5,12 @@
+ import FlutterMacOS
+ import Foundation
+ 
++import file_picker
+ import flutter_midi_command
+ import universal_ble
+ 
+ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
++  FilePickerPlugin.register(with: registry.registrar(forPlugin: "FilePickerPlugin"))
+   SwiftFlutterMidiCommandPlugin.register(with: registry.registrar(forPlugin: "SwiftFlutterMidiCommandPlugin"))
+   UniversalBlePlugin.register(with: registry.registrar(forPlugin: "UniversalBlePlugin"))
+ }
+diff --git a/example/pubspec.yaml b/example/pubspec.yaml
+index 7685b01..b67935f 100644
+--- a/example/pubspec.yaml
++++ b/example/pubspec.yaml
+@@ -32,6 +32,12 @@ dev_dependencies:
+     sdk: flutter
+   flutter_lints: ^5.0.0
+ 
++dependency_overrides:
++  flutter_midi_command_platform_interface:
++    git:
++      url: https://github.com/mem-3158-aoki/flutter_midi_command_platform_interface.git
++      ref: feature/add-closeInputPorts-for-android
++
+ # For information on the generic Dart part of this file, see the
+ # following page: https://dart.dev/tools/pub/pubspec
+ 
+diff --git a/example/windows/flutter/generated_plugin_registrant.cc b/example/windows/flutter/generated_plugin_registrant.cc
+index 5c765e6..a94f016 100644
+--- a/example/windows/flutter/generated_plugin_registrant.cc
++++ b/example/windows/flutter/generated_plugin_registrant.cc
+@@ -6,9 +6,12 @@
+ 
+ #include "generated_plugin_registrant.h"
+ 
++#include <device_manager/device_manager_plugin.h>
+ #include <universal_ble/universal_ble_plugin_c_api.h>
+ 
+ void RegisterPlugins(flutter::PluginRegistry* registry) {
++  DeviceManagerPluginRegisterWithRegistrar(
++      registry->GetRegistrarForPlugin("DeviceManagerPlugin"));
+   UniversalBlePluginCApiRegisterWithRegistrar(
+       registry->GetRegistrarForPlugin("UniversalBlePluginCApi"));
+ }
+diff --git a/example/windows/flutter/generated_plugins.cmake b/example/windows/flutter/generated_plugins.cmake
+index 97ecaa5..a434768 100644
+--- a/example/windows/flutter/generated_plugins.cmake
++++ b/example/windows/flutter/generated_plugins.cmake
+@@ -3,6 +3,7 @@
+ #
+ 
+ list(APPEND FLUTTER_PLUGIN_LIST
++  device_manager
+   universal_ble
+ )
+ 
+diff --git a/ios/Classes/SwiftFlutterMidiCommandPlugin.swift b/ios/Classes/SwiftFlutterMidiCommandPlugin.swift
+index 33e5579..1c9b8fe 100644
+--- a/ios/Classes/SwiftFlutterMidiCommandPlugin.swift
++++ b/ios/Classes/SwiftFlutterMidiCommandPlugin.swift
+@@ -315,6 +315,9 @@ public class SwiftFlutterMidiCommandPlugin: NSObject, CBCentralManagerDelegate,
+ #else
+             result(nil)
+ #endif
++
++        case "closeInputPorts":
++            result(nil)
+             
+         default:
+             result(FlutterMethodNotImplemented)
+diff --git a/lib/flutter_midi_command.dart b/lib/flutter_midi_command.dart
+index 7bceb1d..4f8d252 100644
+--- a/lib/flutter_midi_command.dart
++++ b/lib/flutter_midi_command.dart
+@@ -194,4 +194,11 @@ class MidiCommand {
+   void setNetworkSessionEnabled(bool enabled) {
+     _platform.setNetworkSessionEnabled(enabled);
+   }
++
++  /// Closes all input ports of connected devices.
++  /// 
++  /// This is functional on Android only, as iOS does not require manual management of input ports.
++  void closeInputPorts() {
++    _platform.closeInputPorts();
++  }
+ }
+diff --git a/pubspec.yaml b/pubspec.yaml
+index b612b21..4065bef 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -11,7 +11,10 @@ environment:
+ dependencies:
+   flutter:
+     sdk: flutter
+-  flutter_midi_command_platform_interface: ^0.4.1
++  flutter_midi_command_platform_interface:
++    git:
++      url: https://github.com/mem-3158-aoki/flutter_midi_command_platform_interface.git
++      ref: feature/add-closeInputPorts-for-android
+   flutter_midi_command_linux: ^0.3.0
+   flutter_midi_command_windows: ^0.3.0
+     
+@@ -19,6 +22,12 @@ dev_dependencies:
+   flutter_test:
+     sdk: flutter
+ 
++dependency_overrides:
++  flutter_midi_command_platform_interface:
++    git:
++      url: https://github.com/mem-3158-aoki/flutter_midi_command_platform_interface.git
++      ref: feature/add-closeInputPorts-for-android
++
+ # For information on the generic Dart part of this file, see the
+ # following page: https://dart.dev/tools/pub/pubspec
+ 
