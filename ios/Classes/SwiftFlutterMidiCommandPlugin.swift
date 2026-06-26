@@ -333,8 +333,6 @@ public class SwiftFlutterMidiCommandPlugin: NSObject, CBCentralManagerDelegate, 
         
         if type == "BLE" {
             if let periph = discoveredDevices.filter({ (p) -> Bool in p.identifier.uuidString == deviceId }).first {
-                let device = ConnectedBLEDevice(id: deviceId, type: type, streamHandler: rxStreamHandler, result:ongoingConnections[deviceId], peripheral: periph, ports:ports)
-                connectedDevices[deviceId] = device
                 manager.stopScan()
                 manager.connect(periph, options: nil)
             } else {
@@ -904,7 +902,10 @@ public class SwiftFlutterMidiCommandPlugin: NSObject, CBCentralManagerDelegate, 
     
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("central did connect \(peripheral)")
-        (connectedDevices[peripheral.identifier.uuidString] as! ConnectedBLEDevice).setupBLE(stream: setupStreamHandler)
+        let deviceId = peripheral.identifier.uuidString
+        let device = ConnectedBLEDevice(id: deviceId, type: "BLE", streamHandler: rxStreamHandler, result: ongoingConnections[deviceId], peripheral: peripheral, ports:nil)
+        device.setupBLE(stream: setupStreamHandler)
+        connectedDevices[deviceId] = device
     }
     
     public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
